@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Game</title>
+    <style>
+        #board {
+            width: 400px;
+            height: 400px;
+            border: 2px solid #333;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+        }
+
+        .square {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            border: 1px solid #888;
+        }
+
+        .white {
+            background-color: #f0d9b5;
+        }
+
+        .black {
+            background-color: #b58863;
+        }
+
+        .piece {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+
+        .piece.dragging {
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div id="board"></div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const board = document.getElementById("board");
+            let selectedPiece = null;
+            let dragging = false;
+            let currentPlayer = 'white';
+
+            createBoard();
+            initializePieces();
+
+            function createBoard() {
+                let isWhite = true;
+
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const square = document.createElement("div");
+                        square.className = `square ${isWhite ? 'white' : 'black'}`;
+                        square.setAttribute("data-row", row);
+                        square.setAttribute("data-col", col);
+                        square.addEventListener("click", handleSquareClick);
+                        square.addEventListener("dragover", handleDragOver);
+                        square.addEventListener("drop", handleDrop);
+                        board.appendChild(square);
+                        isWhite = !isWhite;
+                    }
+                    isWhite = !isWhite;
+                }
+            }
+
+            function createPiece(pieceType, color) {
+                const piece = document.createElement("div");
+                piece.className = `piece ${pieceType} ${color}`;
+                piece.textContent = getPieceSymbol(pieceType, color);
+
+                piece.addEventListener("mousedown", handlePieceMouseDown);
+                piece.addEventListener("dragstart", handleDragStart);
+                piece.addEventListener("dragend", handleDragEnd);
+
+                return piece;
+            }
+
+            function getPieceSymbol(pieceType, color) {
+                const symbols = {
+                    'pawn': {
+                        'white': '♙',
+                        'black': '♟'
+                    },
+                    'rook': {
+                        'white': '♖',
+                        'black': '♜'
+                    },
+                    'knight': {
+                        'white': '♘',
+                        'black': '♞'
+                    },
+                    'bishop': {
+                        'white': '♗',
+                        'black': '♝'
+                    },
+                    'queen': {
+                        'white': '♕',
+                        'black': '♛'
+                    },
+                    'king': {
+                        'white': '♔',
+                        'black': '♚'
+                    }
+                };
+
+                return symbols[pieceType][color] || '';
+            }
+
+            function initializePieces() {
+                for (let col = 0; col < 8; col++) {
+                    placePiece('pawn', 'white', 1, col);
+                    placePiece('pawn', 'black', 6, col);
+                }
+
+                placePiece('rook', 'white', 0, 0);
+                placePiece('rook', 'white', 0, 7);
+                placePiece('rook', 'black', 7, 0);
+                placePiece('rook', 'black', 7, 7);
+
+                placePiece('knight', 'white', 0, 1);
+                placePiece('knight', 'white', 0, 6);
+                placePiece('knight', 'black', 7, 1);
+                placePiece('knight', 'black', 7, 6);
+
+                placePiece('bishop', 'white', 0, 2);
+                placePiece('bishop', 'white', 0, 5);
+                placePiece('bishop', 'black', 7, 2);
+                placePiece('bishop', 'black', 7, 5);
+
+                placePiece('queen', 'white', 0, 3);
+                placePiece('king', 'white', 0, 4);
+                placePiece('queen', 'black', 7, 3);
+                placePiece('king', 'black', 7, 4);
+            }
+
+            function placePiece(pieceType, color, row, col) {
+                const square = document.querySelector(`.square[data-row="${row}"][data-col="${col}"]`);
+                square.appendChild(createPiece(pieceType, color));
+            }
+
+            function handleSquareClick() {
+                const clickedSquare = this;
+                const clickedRow = parseInt(clickedSquare.getAttribute("data-row"));
+                const clickedCol = parseInt(clickedSquare.getAttribute("data-col"));
+                const clickedPiece = clickedSquare.querySelector(".piece");
+
+                if (dragging) {
+                    const selectedRow = parseInt(selectedPiece.parentElement.getAttribute("data-row"));
+                    const selectedCol = parseInt(selectedPiece.parentElement.getAttribute("data-col"));
+
+                    if (isValidMove(selectedRow, selectedCol, clickedRow, clickedCol)) {
+                        // Move the piece to the clicked square
+                        clickedSquare.appendChild(selectedPiece);
+                        currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
+
+                        // Check for checkmate or other game conditions here if needed
+
+                        // AI move (simple random move for now)
+                        makeAIMove();
+                    }
+
+                    selectedPiece.classList.remove("dragging");
+                    selectedPiece = null;
+                    dragging = false;
+                } else {
+                    // Select the piece in the clicked square
+                    if (clickedPiece && clickedPiece.classList.contains(currentPlayer)) {
+                        selectedPiece = clickedPiece;
+                    }
+                }
+            }
+
+            function handlePieceMouseDown(event) {
+                event.preventDefault();
+                // Prevent text selection during drag
+            }
+
+            function handleDragStart() {
+                dragging = true;
+                selectedPiece.classList.add("dragging");
+            }
+
+            function handleDragEnd() {
+                dragging = false;
+                selectedPiece.classList.remove("dragging");
+            }
+
+            function handleDragOver(event) {
+                event.preventDefault();
+            }
+
+            function handleDrop() {
+                const clickedSquare = this;
+                const clickedRow = parseInt(clickedSquare.getAttribute("data-row"));
+                const clickedCol = parseInt(clickedSquare.getAttribute("data-col"));
+
+                if (dragging && isValidMove(
+                    parseInt(selectedPiece.parentElement.getAttribute("data-row")),
+                    parseInt(selectedPiece.parentElement.getAttribute("data-col")),
+                    clickedRow,
+                    clickedCol
+                )) {
+                    clickedSquare.appendChild(selectedPiece);
+                    currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
+
+                    // Check for checkmate or other game conditions here if needed
+
+                    // AI move (simple random move for now)
+                    makeAIMove();
+                }
+
+                selectedPiece.classList.remove("dragging");
+                selectedPiece = null;
+                dragging = false;
+            }
+
+            function isValidMove(startRow, startCol, endRow, endCol) {
+                // Implement the logic to check if the move is valid
+                // This will depend on the type of piece and specific rules for each piece
+                // Return true if the move is valid, otherwise return false
+                return true;  // Placeholder, replace with actual logic
+            }
+
+            function makeAIMove() {
+                // Simple AI: Randomly select one of its pieces and make a random move
+                const aiPieces = document.querySelectorAll(`.piece.${currentPlayer}`);
+                const randomPieceIndex = Math.floor(Math.random() * aiPieces.length);
+                const aiSelectedPiece = aiPieces[randomPieceIndex];
+
+                // Find a random empty square to move to
+                let emptySquareFound = false;
+                while (!emptySquareFound) {
+                    const randomRow = Math.floor(Math.random() * 8);
+                    const randomCol = Math.floor(Math.random() * 8);
+                    const targetSquare = document.querySelector(`.square[data-row="${randomRow}"][data-col="${randomCol}"]`);
+
+                    if (!targetSquare.hasChildNodes()) {
+                        targetSquare.appendChild(aiSelectedPiece);
+                        emptySquareFound = true;
+                    }
+                }
+
+                currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
+            }
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+
+
